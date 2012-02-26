@@ -1,0 +1,5 @@
+## fishBMC visualization plugin for XBMC ##
+compiles against XMBC 11
+edit first line of Makefile to set xbmc include path
+
+
