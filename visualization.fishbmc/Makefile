@@ -3,8 +3,8 @@ XBMC=../../xbmc/xbmc
 
 CC=		gcc
 CPP=		g++
-CFLAGS=		-c -O2 -fPIC -Wall
-CPPFLAGS=	-c -O2 -fPIC -Wall
+CFLAGS=		-c -O3 -fPIC -Wall
+CPPFLAGS=	-c -O3 -fPIC -Wall
 LDFLAGS=	-shared
 OBJECTS=	src/analyst.o \
 		src/audiobuffer.o \
