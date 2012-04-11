@@ -23,13 +23,7 @@
 #include "addons/include/xbmc_vis_dll.h"
 
 #include "fische.h"
-#if defined(__APPLE__)
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#else
-#include <GL/gl.h>
-#include <GL/glu.h>
-#endif
+
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -38,10 +32,10 @@
 #include <sstream>
 #include <sys/stat.h>
 
+
 // global variables
 FISCHE*     g_fische;
 double      g_aspect;
-GLuint      g_texture;
 bool        g_isrotating;
 double      g_angle;
 double      g_lastangle;
@@ -54,114 +48,21 @@ bool        g_filemode;
 int         g_size;
 uint8_t*    g_axis = 0;
 
-// OpenGL: paint a textured quad
-void textured_quad_GL (double center_x,
-                       double center_y,
-                       double angle,
-                       double axis,
-                       double width,
-                       double height,
-                       double tex_left,
-                       double tex_right,
-                       double tex_top,
-                       double tex_bottom)
-{
-    glPushMatrix();
 
-    glTranslatef (center_x, center_y, 0);
-    glRotatef (angle, axis, 1 - axis, 0);
 
-    double scale = 1 - sin (angle / 360 * M_PI) / 3;
-    glScalef (scale, scale, scale);
 
-    glBegin (GL_QUADS);
-    glTexCoord2d (tex_left, tex_top);
-    glVertex3d (- width / 2, - height / 2, 0);
-    glTexCoord2d (tex_right, tex_top);
-    glVertex3d (width / 2, - height / 2, 0);
-    glTexCoord2d (tex_right, tex_bottom);
-    glVertex3d (width / 2, height / 2, 0);
-    glTexCoord2d (tex_left, tex_bottom);
-    glVertex3d (- width / 2, height / 2, 0);
-    glEnd();
 
-    glPopMatrix();
-}
+// render functions
+// must be included AFTER global variables
+#if defined(__linux__) || defined(__APPLE__)
+#include "fishbmc_opengl.hpp"
+#else // __linux__ || __APPLE__
+#include "fishbmc_directx.hpp"
+#endif // __linux__ || __APPLE__
 
-void render_GL()
-{
-    // Save State
-    glPushAttrib (GL_ENABLE_BIT | GL_TEXTURE_BIT);
 
-    // OpenGL settings
-    glEnable (GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable (GL_TEXTURE_2D);
-    glDisable (GL_DEPTH_TEST);
-    glPolygonMode (GL_FRONT, GL_FILL);
 
-    // OpenGL matrix setup
-    glMatrixMode (GL_PROJECTION);
-    glPushMatrix();
-    glLoadIdentity();
-    glFrustum (-1, 1, 1, -1, 3, 15);
 
-    glMatrixMode (GL_MODELVIEW);
-    glPushMatrix();
-    glLoadIdentity();
-
-    // actual painting
-    glBindTexture (GL_TEXTURE_2D, g_texture);
-
-    if (g_isrotating) {
-        if (g_angle - g_lastangle > 180) {
-            g_lastangle = g_lastangle ? 0 : 180;
-            g_angle = g_lastangle;
-            g_isrotating = false;
-        }
-    }
-
-    int n = 8;
-    int m = (g_aspect * 8 + 0.5);
-
-    if (!g_axis) {
-        g_axis = new uint8_t[m * n];
-        for (int i = 0; i < m * n; ++ i) {
-            g_axis[i] = rand() % 2;
-        }
-    }
-
-    glTranslatef (0, 0, -6.0f);
-    glRotatef (g_angle, 0, 1, 0);
-
-    for (int i = 0; i < m; i += 1) {
-        for (int j = 0; j < n; j += 1) {
-            double di = i;
-            double dj = j;
-            double dx = -2 + (di + 0.5) * 4 / m;
-            double dy = -2 + (dj + 0.5) * 4 / n;
-            double w = 4.0 / m;
-            double h = 4.0 / n;
-            double tw = (g_texright - g_texleft);
-            double tl = g_texleft + tw * di / m;
-            double tr = g_texleft + tw * (di + 1) / m;
-            double tt = dj / n;
-            double tb = (dj + 1) / n;
-            double angle = (g_angle - g_lastangle) * 4 - (di + dj * m) / (m * n) * 360;
-            if (angle < 0) angle = 0;
-            if (angle > 360) angle = 360;
-            textured_quad_GL (dx, dy, angle, g_axis[i + j * m], w, h, tl, tr, tt, tb);
-        }
-    }
-
-    // OpenGL matrix to original state
-    glPopMatrix();
-    glMatrixMode (GL_PROJECTION);
-    glPopMatrix();
-
-    // Restore original state
-    glPopAttrib();
-}
 
 void on_beat (double frames_per_beat)
 {
@@ -245,6 +146,8 @@ extern "C" ADDON_STATUS ADDON_Create (void* hdl, void* props)
 
     VIS_PROPS* visProps = (VIS_PROPS*) props;
 
+    init (visProps);
+
     g_fische = fische_new();
     g_fische->on_beat = &on_beat;
     g_fische->pixel_format = FISCHE_PIXELFORMAT_0xAABBGGRR;
@@ -285,13 +188,7 @@ extern "C" void Start (int, int, int, const char*)
 
     uint32_t* pixels = fische_render (g_fische);
 
-    // generate a texture for drawing into
-    glEnable (GL_TEXTURE_2D);
-    glGenTextures (1, &g_texture);
-    glBindTexture (GL_TEXTURE_2D, g_texture);
-    glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D (GL_TEXTURE_2D, 0, GL_RGBA, g_fische->width, g_fische->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    init_texture (g_fische->width, g_fische->height, pixels);
 
     g_isrotating = false;
     g_angle = 0;
@@ -311,14 +208,66 @@ extern "C" void Render()
     // check if this frame is to be skipped
     if (++ frame % g_framedivisor == 0) {
         uint32_t* pixels = fische_render (g_fische);
-        glBindTexture (GL_TEXTURE_2D, g_texture);
-        glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0, g_fische->width, g_fische->height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+        replace_texture (g_fische->width, g_fische->height, pixels);
         if (g_isrotating)
             g_angle += g_angleincrement;
     }
 
-    // actual rendering
-    render_GL();
+    // stop rotation if required
+    if (g_isrotating) {
+        if (g_angle - g_lastangle > 180) {
+            g_lastangle = g_lastangle ? 0 : 180;
+            g_angle = g_lastangle;
+            g_isrotating = false;
+        }
+    }
+
+    // how many quads will there be?
+    int n_Y = 8;
+    int n_X = (g_aspect * 8 + 0.5);
+
+    // one-time initialization of rotation axis array
+    if (!g_axis) {
+        g_axis = new uint8_t[n_X * n_Y];
+        for (int i = 0; i < n_X * n_Y; ++ i) {
+            g_axis[i] = rand() % 2;
+        }
+    }
+
+    start_render();
+
+    // loop over and draw all quads
+    int quad_count = 0;
+    double quad_width = 4.0 / n_X;
+    double quad_height = 4.0 / n_Y;
+    double tex_width = (g_texright - g_texleft);
+
+    for (double X = 0; X < n_X; X += 1) {
+        for (double Y = 0; Y < n_Y; Y += 1) {
+            double center_x = -2 + (X + 0.5) * 4 / n_X;
+            double center_y = -2 + (Y + 0.5) * 4 / n_Y;
+            double tex_left = g_texleft + tex_width * X / n_X;
+            double tex_right = g_texleft + tex_width * (X + 1) / n_X;
+            double tex_top = Y / n_Y;
+            double tex_bottom = (Y + 1) / n_Y;
+            double angle = (g_angle - g_lastangle) * 4 - (X + Y * n_X) / (n_X * n_Y) * 360;
+            if (angle < 0) angle = 0;
+            if (angle > 360) angle = 360;
+
+            textured_quad (center_x,
+                              center_y,
+                              angle,
+                              g_axis[quad_count ++],
+                              quad_width,
+                              quad_height,
+                              tex_left,
+                              tex_right,
+                              tex_top,
+                              tex_bottom);
+        }
+    }
+
+    finish_render();
 }
 
 extern "C" void GetInfo (VIS_INFO* pInfo)
@@ -357,7 +306,7 @@ extern "C" void ADDON_Stop()
 {
     fische_free (g_fische);
     g_fische = 0;
-    glDeleteTextures (1, &g_texture);
+    delete_texture();
     delete [] g_axis;
     g_axis = 0;
 }
