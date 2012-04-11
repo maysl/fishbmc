@@ -1,11 +1,13 @@
 #path to xbmc includes: addons/include/xbmc_vis...
-XBMC=../../xbmc/xbmc
+# below one builds from xbmc/visualisations
+XBMC=../..
+
+ARCH=$(shell uname)
 
 CC=		gcc
 CPP=		g++
 CFLAGS=		-c -O3 -fPIC -Wall
 CPPFLAGS=	-c -O3 -fPIC -Wall
-LDFLAGS=	-shared
 OBJECTS=	src/analyst.o \
 		src/audiobuffer.o \
 		src/blurengine.o \
@@ -17,13 +19,25 @@ OBJECTS=	src/analyst.o \
 		src/wavepainter.o \
 		src/fishbmc_addon.o
 
-PLUGIN=fishbmc-linux.vis
+ifneq (,$(findstring Darwin, $(ARCH)))
+    LDFLAGS += -framework OpenGL -arch i386
+    CFLAGS += -arch i386
+    CPPFLAGS += -arch i386
+    PLUGIN=fishbmc-osx.vis
+else
+    LDFLAGS=	-shared
+    PLUGIN=fishbmc-linux.vis
+endif
 
 all: $(PLUGIN)
 
 $(PLUGIN): $(OBJECTS)
+ifneq (,$(findstring Darwin, $(ARCH)))
+	$(CPP) $(LDFLAGS) $(OBJECTS) -bundle -o $@
+else
 	$(CPP) $(LDFLAGS) $(OBJECTS) -o $@
 	strip --strip-unneeded $@
+endif	
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@
@@ -33,5 +47,5 @@ $(PLUGIN): $(OBJECTS)
 
 clean:
 	rm -f src/*.o
-	rm -f fishbmc-linux.vis
+	rm -f $(PLUGIN)
 

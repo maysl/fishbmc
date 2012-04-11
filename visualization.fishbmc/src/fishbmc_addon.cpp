@@ -23,9 +23,13 @@
 #include "addons/include/xbmc_vis_dll.h"
 
 #include "fische.h"
-
+#if defined(__APPLE__)
+#include <OpenGL/gl.h>
+#include <OpenGL/glu.h>
+#else
 #include <GL/gl.h>
 #include <GL/glu.h>
+#endif
 #include <cmath>
 #include <cstring>
 #include <iostream>
