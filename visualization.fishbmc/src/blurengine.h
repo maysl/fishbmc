@@ -2,6 +2,7 @@
 #define BLURENGINE_H
 
 #include <stdint.h>
+#include <pthread.h>
 
 struct fische;
 
