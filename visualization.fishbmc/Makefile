@@ -1,49 +1,60 @@
 #path to xbmc includes: addons/include/xbmc_vis...
 # below one builds from xbmc/visualisations
-XBMC=../..
+XBMC=			../..
 
-ARCH=$(shell uname)
+ARCH=			$(shell uname)
 
-CC=		gcc
-CPP=		g++
-CFLAGS=		-c -O3 -fPIC -Wall
-CPPFLAGS=	-c -O3 -fPIC -Wall
-OBJECTS=	src/analyst.o \
-		src/audiobuffer.o \
-		src/blurengine.o \
-		src/cpudetect.o \
-		src/fische.o \
-		src/screenbuffer.o \
-		src/vector.o \
-		src/vectorfield.o \
-		src/wavepainter.o \
-		src/fishbmc_addon.o
+CC=				gcc
+CPP=			g++
+MY_CFLAGS=		$(CFLAGS) -I. -c -O3 -fPIC -Wall
+MY_CXXFLAGS=	$(CXXFLAGS) -I. -c -O3 -fPIC -Wall
+OBJECTS=		src/analyst.o \
+					src/audiobuffer.o \
+					src/blurengine.o \
+					src/cpudetect.o \
+					src/fische.o \
+					src/screenbuffer.o \
+					src/vector.o \
+					src/vectorfield.o \
+					src/wavepainter.o \
+					src/fishbmc_addon.o
 
 ifneq (,$(findstring Darwin, $(ARCH)))
+    
     LDFLAGS += -framework OpenGL -arch i386
-    CFLAGS += -arch i386
-    CPPFLAGS += -arch i386
+    MY_CFLAGS += -arch i386
+    MY_CPPFLAGS += -arch i386
+    
     PLUGIN=fishbmc-osx.vis
-else
-    LDFLAGS=	-shared
+
+else #ARCH Darwin
+
+    LDFLAGS=-shared
     PLUGIN=fishbmc-linux.vis
-endif
+
+endif #ARCH Darwin
+
 
 all: $(PLUGIN)
 
 $(PLUGIN): $(OBJECTS)
+
 ifneq (,$(findstring Darwin, $(ARCH)))
+
 	$(CPP) $(LDFLAGS) $(OBJECTS) -bundle -o $@
-else
+
+else #ARCH Darwin
+	
 	$(CPP) $(LDFLAGS) $(OBJECTS) -o $@
 	strip --strip-unneeded $@
-endif	
+
+endif #ARCH Darwin	
 
 .c.o:
-	$(CC) $(CFLAGS) $< -o $@
+	$(CC) $(MY_CFLAGS) $< -o $@
 
 .cpp.o:
-	$(CPP) $(CFLAGS) -I$(XBMC) $< -o $@
+	$(CPP) $(MY_CXXFLAGS) -I$(XBMC) $< -o $@
 
 clean:
 	rm -f src/*.o
