@@ -21,9 +21,9 @@ OBJECTS=		src/analyst.o \
 
 ifneq (,$(findstring Darwin, $(ARCH)))
     
-    LDFLAGS += -framework OpenGL -arch i386
+    LDFLAGS = -framework OpenGL -arch i386
     MY_CFLAGS += -arch i386
-    MY_CPPFLAGS += -arch i386
+    MY_CXXFLAGS += -arch i386
     
     PLUGIN=fishbmc-osx.vis
 
